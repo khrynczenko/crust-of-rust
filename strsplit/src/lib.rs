@@ -25,8 +25,9 @@ impl Delimeter for &str {
     }
 }
 
-impl<'haystack, D> Iterator for StrSplit<'haystack, D> 
-    where D: Delimeter,
+impl<'haystack, D> Iterator for StrSplit<'haystack, D>
+where
+    D: Delimeter,
     //where 'delimeter: 'haystack,
 {
     type Item = &'haystack str;
