@@ -35,7 +35,8 @@ where
     O::Item: IntoIterator,
 {
     outer: O,
-    inner: Option<<O::Item as IntoIterator>::IntoIter>,
+    front_iter: Option<<O::Item as IntoIterator>::IntoIter>,
+    back_iter: Option<<O::Item as IntoIterator>::IntoIter>,
 }
 
 impl<O> Flatten<O>
@@ -46,7 +47,8 @@ where
     fn new(iter: O) -> Self {
         Flatten {
             outer: iter,
-            inner: None,
+            front_iter: None,
+            back_iter: None,
         }
     }
 }
@@ -59,16 +61,45 @@ where
     type Item = <O::Item as IntoIterator>::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.inner.is_none() {
-            self.inner = Some(self.outer.next()?.into_iter());
+        if self.front_iter.is_none() {
+            if let Some(iter_next) = self.outer.next() {
+                self.front_iter = Some(iter_next.into_iter());
+            } else {
+                return self.back_iter.as_mut()?.next()
+            }
         }
 
-        let x = self.inner.as_mut().unwrap().next();
+        let x = self.front_iter.as_mut().unwrap().next();
         if let Some(v) = x {
             Some(v)
         } else {
-            self.inner = None;
+            self.front_iter = None;
             self.next()
+        }
+    }
+}
+
+impl<O> DoubleEndedIterator for Flatten<O>
+where
+    O: Iterator + DoubleEndedIterator,
+    O::Item: IntoIterator,
+    <O::Item as IntoIterator>::IntoIter: DoubleEndedIterator,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.back_iter.is_none() {
+            if let Some(iter_next) = self.outer.next_back() {
+                self.back_iter = Some(iter_next.into_iter());
+            } else {
+                return self.front_iter.as_mut()?.next_back()
+            }
+        }
+
+        let x = self.back_iter.as_mut().unwrap().next_back();
+        if let Some(v) = x {
+            Some(v)
+        } else {
+            self.back_iter = None;
+            self.next_back()
         }
     }
 }
@@ -84,10 +115,7 @@ mod tests {
 
     #[test]
     fn many_empty() {
-        assert_eq!(
-            flatten(vec![Vec::<()>::new(), vec![], vec![]]).count(),
-            0
-        );
+        assert_eq!(flatten(vec![Vec::<()>::new(), vec![], vec![]]).count(), 0);
     }
 
     #[test]
@@ -107,9 +135,22 @@ mod tests {
 
     #[test]
     fn two_inner_four() {
-        assert_eq!(
-            flatten(vec![vec!["a", "b"], vec!["b", "c"]]).count(),
-            4
-        );
+        assert_eq!(flatten(vec![vec!["a", "b"], vec!["b", "c"]]).count(), 4);
+    }
+
+    #[test]
+    fn reverse() {
+        let x = flatten(vec![vec!["a", "b"], vec!["b", "c"]])
+            .rev()
+            .collect::<Vec<&str>>();
+        assert_eq!(x, vec!["c", "b", "b", "a"]);
+    }
+    #[test]
+    fn both_ends() {
+        let mut iter = flatten(vec![vec!["a1", "a2"], vec!["b1", "b2"]]);
+        assert_eq!(iter.next(), Some("a1"));
+        assert_eq!(iter.next_back(), Some("b2"));
+        assert_eq!(iter.next(), Some("a2"));
+        assert_eq!(iter.next_back(), Some("b1"));
     }
 }
