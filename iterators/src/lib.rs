@@ -65,7 +65,7 @@ where
             if let Some(iter_next) = self.outer.next() {
                 self.front_iter = Some(iter_next.into_iter());
             } else {
-                return self.back_iter.as_mut()?.next()
+                return self.back_iter.as_mut()?.next();
             }
         }
 
@@ -90,7 +90,7 @@ where
             if let Some(iter_next) = self.outer.next_back() {
                 self.back_iter = Some(iter_next.into_iter());
             } else {
-                return self.front_iter.as_mut()?.next_back()
+                return self.front_iter.as_mut()?.next_back();
             }
         }
 
